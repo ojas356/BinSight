@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import HotspotsPage from './pages/HotspotsPage';
 import RoutesPage from './pages/RoutesPage';
+import MunicipalLogin from './pages/MunicipalLogin';
 import { getClock, setClock, simTick } from './services/api';
 
 export default function MunicipalApp({ onBack }) {
-  const [clock, setClockState] = useState(null);
+  const [user, setUser]         = useState(null); // null = not logged in
+  const [clock, setClockState]  = useState(null);
 
   const fetchClock = useCallback(async () => {
     try {
@@ -17,8 +19,9 @@ export default function MunicipalApp({ onBack }) {
     }
   }, []);
 
-  // Poll clock + tick every 2 seconds
+  // Only start polling once logged in
   useEffect(() => {
+    if (!user) return;
     fetchClock();
     const interval = setInterval(async () => {
       try {
@@ -28,7 +31,7 @@ export default function MunicipalApp({ onBack }) {
       } catch (e) { /* ignore */ }
     }, 2000);
     return () => clearInterval(interval);
-  }, [fetchClock]);
+  }, [user, fetchClock]);
 
   const handleSpeedChange = async (speed) => {
     const { data } = await setClock({ speed });
@@ -50,6 +53,17 @@ export default function MunicipalApp({ onBack }) {
     setClockState(data);
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    setClockState(null);
+  };
+
+  // ── Gate: show login if not authenticated ──
+  if (!user) {
+    return <MunicipalLogin onLogin={setUser} onBack={onBack} />;
+  }
+
+  // ── Authenticated: full dashboard ──
   return (
     <BrowserRouter>
       <div className="app-layout">
@@ -74,9 +88,25 @@ export default function MunicipalApp({ onBack }) {
           </nav>
 
           <div className="sidebar-footer">
-            <button className="portal-back-btn portal-back-btn--sidebar" onClick={onBack}>
+            {/* Logged-in user pill */}
+            <div className="login-user-pill">
+              <span className="login-user-avatar">👤</span>
+              <div className="login-user-info">
+                <span className="login-user-name">{user.username}</span>
+                <span className="login-user-role">{user.role} · {user.zone}</span>
+              </div>
+            </div>
+
+            <button className="portal-back-btn portal-back-btn--sidebar" onClick={handleLogout}
+              style={{ marginTop: 8 }}>
+              🔓 Sign Out
+            </button>
+
+            <button className="portal-back-btn portal-back-btn--sidebar" onClick={onBack}
+              style={{ marginTop: 6 }}>
               ← Switch Portal
             </button>
+
             <div className="demo-note" style={{ marginTop: 10 }}>
               <strong>Demo Mode</strong><br />
               Truck GPS, traffic, and historical data are simulated.

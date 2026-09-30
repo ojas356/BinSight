@@ -1,11 +1,19 @@
 """Seed data for BinSight demo.
 
-Populates the database with realistic Mumbai-area data:
-- 3 fixed routes (Andheri East, Kurla, Ghatkopar) with trucks
-- 2 gap vehicles at different locations/capacities
-- 25-30 current reports in 4 geographic clusters
-- 30 days of historical collected reports for hotspot recurrence
-- Sim clock starts at 08:30
+Mumbai-area demo data designed to produce clear, visible results:
+
+CURRENT REPORTS — 5 tight geographic clusters:
+  C1  Andheri East / Sakinaka      ~8 reports  (near R1 → some HELD)
+  C2  Kurla Market                 ~9 reports  (near R2 → some HELD, recurring hotspot)
+  C3  Ghatkopar LBS Marg           ~7 reports  (near R3 → some HELD)
+  C4  Dharavi / Sion               ~8 reports  (far from routes → all ESCALATE, hazardous mix)
+  C5  Bandra Kurla Complex         ~7 reports  (construction + mixed, all ESCALATE)
+
+HISTORICAL REPORTS — 45 days of data that makes C1, C2, C4 show as RECURRING hotspots.
+
+Fixed routes: R1 Andheri East, R2 Kurla West, R3 Ghatkopar
+Gap vehicles: G1 near Sakinaka, G2 near Kurla
+Sim clock resets to 08:30 on seed.
 """
 import json
 import random
@@ -13,17 +21,19 @@ from datetime import datetime, timedelta
 from database import db
 from models import Report, Truck, FixedRoute, Hotspot, GapRoute
 
-# Mumbai area coordinates for fixed routes
+random.seed(42)   # deterministic for consistent demos
+
+# ── Fixed routes ──────────────────────────────────────────────
 FIXED_ROUTES_DATA = [
     {
         'name': 'R1 — Andheri East',
         'waypoints': [
-            [19.1196, 72.8464],  # Start: Andheri East station area
-            [19.1220, 72.8520],  # Chakala
-            [19.1250, 72.8580],  # Sakinaka junction
-            [19.1180, 72.8620],  # MIDC
-            [19.1140, 72.8550],  # Marol
-            [19.1100, 72.8480],  # End near JB Nagar
+            [19.1196, 72.8464],
+            [19.1220, 72.8520],
+            [19.1250, 72.8580],
+            [19.1180, 72.8620],
+            [19.1140, 72.8550],
+            [19.1100, 72.8480],
         ],
         'window_start': '06:00',
         'window_end': '12:00',
@@ -31,12 +41,12 @@ FIXED_ROUTES_DATA = [
     {
         'name': 'R2 — Kurla West',
         'waypoints': [
-            [19.0728, 72.8790],  # Start: Kurla station
-            [19.0750, 72.8830],  # Kurla market
-            [19.0780, 72.8870],  # Nehru Nagar
-            [19.0810, 72.8910],  # BKC approach
-            [19.0760, 72.8950],  # Near BKC
-            [19.0720, 72.8900],  # Return towards Kurla
+            [19.0728, 72.8790],
+            [19.0750, 72.8830],
+            [19.0780, 72.8870],
+            [19.0810, 72.8910],
+            [19.0760, 72.8950],
+            [19.0720, 72.8900],
         ],
         'window_start': '06:30',
         'window_end': '11:30',
@@ -44,402 +54,363 @@ FIXED_ROUTES_DATA = [
     {
         'name': 'R3 — Ghatkopar',
         'waypoints': [
-            [19.0860, 72.9080],  # Start: Ghatkopar station
-            [19.0890, 72.9120],  # Pant Nagar
-            [19.0920, 72.9160],  # LBS Marg
-            [19.0950, 72.9200],  # Vidyavihar approach
-            [19.0900, 72.9230],  # Ramabai colony
-            [19.0870, 72.9170],  # Return
+            [19.0860, 72.9080],
+            [19.0890, 72.9120],
+            [19.0920, 72.9160],
+            [19.0950, 72.9200],
+            [19.0900, 72.9230],
+            [19.0870, 72.9170],
         ],
         'window_start': '07:00',
         'window_end': '12:30',
     },
 ]
 
-# Gap vehicles
 GAP_VEHICLES = [
     {
         'name': 'G1 — Light Van Alpha',
-        'latitude': 19.1136,   # Near Sakinaka
+        'latitude': 19.1136,
         'longitude': 72.8697,
         'capacity_kg': 300,
-        'current_load_kg': 80,
+        'current_load_kg': 0,
     },
     {
         'name': 'G2 — Light Van Beta',
-        'latitude': 19.0800,   # Near Kurla
+        'latitude': 19.0800,
         'longitude': 72.8850,
-        'capacity_kg': 200,
-        'current_load_kg': 20,
+        'capacity_kg': 250,
+        'current_load_kg': 0,
     },
 ]
 
-# Report clusters for demo
-# Cluster 1: Near Sakinaka (will form hotspot, some near R1 for HOLD)
-# Cluster 2: Near Kurla market (recurring hotspot area)
-# Cluster 3: Far from routes (will ESCALATE)
-# Cluster 4: Medical/hazardous (always ESCALATE)
-
-CATEGORIES = ['Plastic', 'Paper', 'Glass', 'Metal', 'Organic', 'Mixed Waste',
-              'Construction Waste', 'Medical/Hazardous']
-
-DESCRIPTIONS = [
-    'Pile of plastic bags and bottles near the drain',
-    'Construction debris dumped on the sidewalk',
-    'Overflowing community bin, attracting stray animals',
-    'Food waste from restaurant dumped in open plot',
-    'Broken glass and metal cans near playground',
-    'Large garbage pile near bus stop',
-    'Medical waste spotted near residential area',
-    'Cardboard boxes and packaging material',
-    'Mixed household waste on road corner',
-    'Organic waste causing bad odor near school',
-    'Plastic wrappers and cups along market lane',
-    'Old furniture and electronic waste dumped',
-    'Paper and cardboard blocking pedestrian path',
-    'Vegetable waste from wholesale market',
-    'Used tires and rubber waste near workshop',
+CATEGORIES = [
+    'Plastic', 'Paper', 'Glass', 'Metal', 'Organic',
+    'Mixed Waste', 'Construction Waste', 'Medical/Hazardous',
 ]
 
 
-def create_current_reports(sim_now):
-    """Create 25-30 current reports in 4 clusters."""
+# ── Cluster definitions ───────────────────────────────────────
+# Each entry: (center_lat, center_lon, spread_m, n_reports, dominant_cat, extra_cats)
+# spread_m: random jitter radius in degrees (~0.0001 ≈ 11 m)
+
+def _jitter(center, spread=0.0006):
+    """Return center ± spread (uniform)."""
+    return center + random.uniform(-spread, spread)
+
+
+CLUSTER_SPECS = [
+    # C1 — Andheri East / Sakinaka  (close to R1, mostly HELD)
+    {
+        'id': 'C1', 'name': 'Andheri East / Sakinaka',
+        'lat': 19.1248, 'lon': 72.8578,
+        'spread': 0.0005,
+        'reports': [
+            ('Plastic',           'large',  'Pile of plastic bags blocking storm drain'),
+            ('Mixed Waste',       'large',  'Overflowing community bin, stray animals present'),
+            ('Organic',           'medium', 'Restaurant food waste dumped in open plot'),
+            ('Plastic',           'small',  'Plastic wrappers scattered along footpath'),
+            ('Mixed Waste',       'medium', 'Household garbage dumped on road corner'),
+            ('Paper',             'medium', 'Cardboard boxes and packaging waste'),
+            ('Plastic',           'large',  'Large plastic dump near bus stop'),
+            ('Glass',             'small',  'Broken bottles near residential gate'),
+        ],
+    },
+    # C2 — Kurla Market  (close to R2, recurring, HELD + ESCALATED)
+    {
+        'id': 'C2', 'name': 'Kurla Market',
+        'lat': 19.0748, 'lon': 72.8830,
+        'spread': 0.0005,
+        'reports': [
+            ('Organic',     'large',  'Vegetable waste from wholesale market, severe odour'),
+            ('Mixed Waste', 'large',  'Market overflow waste piled on footpath'),
+            ('Organic',     'medium', 'Rotting food waste attracting pests near school'),
+            ('Plastic',     'medium', 'Plastic wrappers and cups along market lane'),
+            ('Mixed Waste', 'large',  'Daily garbage pile not cleared since yesterday'),
+            ('Organic',     'large',  'Fruit and vegetable peels in drainage area'),
+            ('Paper',       'small',  'Paper bags and packaging from market stalls'),
+            ('Metal',       'small',  'Discarded metal cans near food stalls'),
+            ('Mixed Waste', 'medium', 'Mixed waste from street food vendors'),
+        ],
+    },
+    # C3 — Ghatkopar LBS Marg  (close to R3, mostly HELD)
+    {
+        'id': 'C3', 'name': 'Ghatkopar LBS Marg',
+        'lat': 19.0895, 'lon': 72.9125,
+        'spread': 0.0006,
+        'reports': [
+            ('Mixed Waste',       'large',  'Large garbage pile near LBS Marg bus stop'),
+            ('Plastic',           'medium', 'Plastic bags tangled in roadside shrubs'),
+            ('Organic',           'medium', 'Food waste from nearby canteen'),
+            ('Construction Waste','large',  'Rubble and debris from road repair work'),
+            ('Mixed Waste',       'medium', 'Household waste dumped on open plot'),
+            ('Paper',             'small',  'Newspaper and packaging waste near temple'),
+            ('Plastic',           'large',  'Plastic containers and bottles in drain'),
+        ],
+    },
+    # C4 — Dharavi / Sion  (far from all routes → all ESCALATED, hazardous mix)
+    {
+        'id': 'C4', 'name': 'Dharavi / Sion',
+        'lat': 19.0420, 'lon': 72.8550,
+        'spread': 0.0007,
+        'reports': [
+            ('Medical/Hazardous', 'small',  'Syringes and medical waste near residential building'),
+            ('Medical/Hazardous', 'medium', 'Hospital waste dumped in open nullah — urgent'),
+            ('Mixed Waste',       'large',  'Large uncleared dump near slum boundary'),
+            ('Plastic',           'large',  'Plastic waste clogging open drain, flood risk'),
+            ('Organic',           'large',  'Rotting waste causing disease risk near school'),
+            ('Construction Waste','large',  'Demolition debris blocking access road'),
+            ('Metal',             'medium', 'Scrap metal and old tyres on footpath'),
+            ('Mixed Waste',       'medium', 'Unmanaged dump near water pipe junction'),
+        ],
+    },
+    # C5 — Bandra Kurla Complex  (construction zone, far from routes → all ESCALATED)
+    {
+        'id': 'C5', 'name': 'Bandra Kurla Complex',
+        'lat': 19.0650, 'lon': 72.8680,
+        'spread': 0.0006,
+        'reports': [
+            ('Construction Waste','large',  'Construction rubble piled outside BKC office block'),
+            ('Construction Waste','large',  'Cement bags and rods dumped after night shift'),
+            ('Mixed Waste',       'large',  'Canteen waste from construction workers'),
+            ('Plastic',           'medium', 'Plastic sheeting and wrapping from new building'),
+            ('Metal',             'medium', 'Metal shavings and pipe offcuts on pavement'),
+            ('Construction Waste','medium', 'Sand and gravel spill on service road'),
+            ('Mixed Waste',       'small',  'Scattered waste near security checkpoint'),
+        ],
+    },
+]
+
+# ── Historical recurrence specs ───────────────────────────────
+# (center_lat, center_lon, spread, days, prob_per_day, dominant_cats, collected_by)
+HISTORICAL_SPECS = [
+    # C1 area — moderate recurrence
+    (19.1248, 72.8578, 0.0008, 45, 0.55,
+     ['Plastic', 'Mixed Waste', 'Organic'], 'Fixed Route R1'),
+    # C2 area — high recurrence (daily market waste)
+    (19.0748, 72.8830, 0.0007, 45, 0.80,
+     ['Organic', 'Mixed Waste', 'Plastic'], 'Fixed Route R2'),
+    # C4 area — moderate-high recurrence (persistent hazardous dump)
+    (19.0420, 72.8550, 0.0009, 45, 0.50,
+     ['Medical/Hazardous', 'Mixed Waste', 'Construction Waste'], 'Gap Vehicle G1'),
+    # Scattered background noise (won't cluster)
+    (19.0900, 72.8800, 0.0200, 45, 0.25,
+     ['Mixed Waste', 'Plastic', 'Organic'], 'Fixed Route R3'),
+]
+
+
+def _make_historical():
     reports = []
-    
-    # Cluster 1: Near Sakinaka / R1 route (some will HOLD)
-    cluster1 = [
-        # Close to R1 route - should HOLD
-        {'lat': 19.1245, 'lon': 72.8575, 'cat': 'Plastic', 'size': 'medium',
-         'desc': 'Pile of plastic bags and bottles near the drain'},
-        {'lat': 19.1235, 'lon': 72.8565, 'cat': 'Mixed Waste', 'size': 'large',
-         'desc': 'Overflowing community bin, attracting stray animals'},
-        # Slightly further - should still HOLD
-        {'lat': 19.1260, 'lon': 72.8590, 'cat': 'Organic', 'size': 'medium',
-         'desc': 'Food waste from restaurant dumped in open plot'},
-        # Close together for duplicate detection
-        {'lat': 19.1246, 'lon': 72.8576, 'cat': 'Plastic', 'size': 'small',
-         'desc': 'Same plastic pile, different angle'},
-        # Further from route
-        {'lat': 19.1280, 'lon': 72.8610, 'cat': 'Paper', 'size': 'small',
-         'desc': 'Cardboard boxes and packaging material'},
-        {'lat': 19.1270, 'lon': 72.8600, 'cat': 'Mixed Waste', 'size': 'medium',
-         'desc': 'Mixed household waste on road corner'},
-        {'lat': 19.1275, 'lon': 72.8605, 'cat': 'Plastic', 'size': 'large',
-         'desc': 'Large garbage pile near bus stop'},
-    ]
-    
-    # Cluster 2: Kurla market area (recurring hotspot)
-    cluster2 = [
-        {'lat': 19.0745, 'lon': 72.8825, 'cat': 'Organic', 'size': 'large',
-         'desc': 'Vegetable waste from wholesale market'},
-        {'lat': 19.0750, 'lon': 72.8835, 'cat': 'Mixed Waste', 'size': 'large',
-         'desc': 'Large garbage pile near bus stop'},
-        {'lat': 19.0748, 'lon': 72.8828, 'cat': 'Organic', 'size': 'medium',
-         'desc': 'Organic waste causing bad odor near school'},
-        {'lat': 19.0755, 'lon': 72.8840, 'cat': 'Plastic', 'size': 'medium',
-         'desc': 'Plastic wrappers and cups along market lane'},
-        {'lat': 19.0752, 'lon': 72.8832, 'cat': 'Mixed Waste', 'size': 'medium',
-         'desc': 'Mixed household waste on road corner'},
-    ]
-    
-    # Cluster 3: Far from any route (all ESCALATE)
-    cluster3 = [
-        {'lat': 19.1050, 'lon': 72.8350, 'cat': 'Construction Waste', 'size': 'large',
-         'desc': 'Construction debris dumped on the sidewalk'},
-        {'lat': 19.1055, 'lon': 72.8360, 'cat': 'Construction Waste', 'size': 'large',
-         'desc': 'Old furniture and electronic waste dumped'},
-        {'lat': 19.1060, 'lon': 72.8355, 'cat': 'Metal', 'size': 'medium',
-         'desc': 'Broken glass and metal cans near playground'},
-        {'lat': 19.1045, 'lon': 72.8345, 'cat': 'Glass', 'size': 'small',
-         'desc': 'Broken glass and metal cans near playground'},
-        {'lat': 19.1065, 'lon': 72.8365, 'cat': 'Mixed Waste', 'size': 'medium',
-         'desc': 'Large garbage pile near bus stop'},
-    ]
-    
-    # Cluster 4: Scattered, including hazardous
-    cluster4 = [
-        {'lat': 19.0950, 'lon': 72.8750, 'cat': 'Medical/Hazardous', 'size': 'small',
-         'desc': 'Medical waste spotted near residential area — syringes and bandages'},
-        {'lat': 19.0880, 'lon': 72.8680, 'cat': 'Organic', 'size': 'medium',
-         'desc': 'Food waste from restaurant dumped in open plot'},
-        {'lat': 19.1000, 'lon': 72.8500, 'cat': 'Plastic', 'size': 'large',
-         'desc': 'Pile of plastic bags and bottles near the drain'},
-        {'lat': 19.0820, 'lon': 72.8980, 'cat': 'Paper', 'size': 'small',
-         'desc': 'Paper and cardboard blocking pedestrian path'},
-        {'lat': 19.0970, 'lon': 72.8550, 'cat': 'Mixed Waste', 'size': 'medium',
-         'desc': 'Used tires and rubber waste near workshop'},
-        {'lat': 19.1100, 'lon': 72.8420, 'cat': 'Organic', 'size': 'large',
-         'desc': 'Overflowing community bin, attracting stray animals'},
-        {'lat': 19.0900, 'lon': 72.9050, 'cat': 'Metal', 'size': 'medium',
-         'desc': 'Broken glass and metal cans near playground'},
-    ]
-    
-    all_clusters = cluster1 + cluster2 + cluster3 + cluster4
-    
-    from services.priority import estimate_waste, compute_priority
-    
-    for i, data in enumerate(all_clusters):
-        est_waste = estimate_waste(data['size'], data['cat'])
-        
-        # Create report
-        report = Report(
-            latitude=data['lat'],
-            longitude=data['lon'],
-            timestamp=sim_now - timedelta(minutes=random.randint(5, 180)),
-            category=data['cat'],
-            confidence=round(random.uniform(0.65, 0.95), 2),
-            description=data['desc'],
-            size=data['size'],
-            estimated_waste=est_waste,
-            status='QUEUED',  # Will be updated by HOLD/ESCALATE logic
-            is_historical=False,
-        )
-        reports.append(report)
-    
+    now = datetime.utcnow()
+
+    for (clat, clon, spread, days, prob, cats, collected_by) in HISTORICAL_SPECS:
+        for day in range(1, days + 1):
+            if random.random() < prob:
+                dt = now - timedelta(days=day, hours=random.randint(6, 20),
+                                     minutes=random.randint(0, 59))
+                size = random.choice(['small', 'medium', 'medium', 'large'])
+                waste = {'small': random.uniform(2, 8),
+                         'medium': random.uniform(8, 20),
+                         'large': random.uniform(20, 60)}[size]
+                r = Report(
+                    latitude=_jitter(clat, spread),
+                    longitude=_jitter(clon, spread),
+                    timestamp=dt,
+                    category=random.choice(cats),
+                    confidence=round(random.uniform(0.70, 0.95), 2),
+                    description='Historical report',
+                    size=size,
+                    estimated_waste=round(waste, 1),
+                    status='COLLECTED',
+                    is_historical=True,
+                    collected_at=dt + timedelta(hours=random.randint(1, 6)),
+                    collected_by=collected_by,
+                )
+                reports.append(r)
     return reports
 
 
-def create_historical_reports(days=30):
-    """Create 30 days of historical collected reports for hotspot recurrence."""
+def _make_current(sim_now):
+    from services.priority import estimate_waste
     reports = []
-    now = datetime.utcnow()
-    
-    # Recurring area 1: Near Kurla market
-    for day in range(days):
-        if random.random() < 0.5:  # ~15 reports in 30 days
-            dt = now - timedelta(days=day, hours=random.randint(6, 18))
-            report = Report(
-                latitude=19.0748 + random.uniform(-0.001, 0.001),
-                longitude=72.8830 + random.uniform(-0.001, 0.001),
-                timestamp=dt,
-                category=random.choice(['Organic', 'Mixed Waste', 'Plastic']),
-                confidence=0.80,
-                description='Historical: market waste accumulation',
-                size=random.choice(['medium', 'large']),
-                estimated_waste=random.uniform(5, 25),
-                status='COLLECTED',
-                is_historical=True,
-                collected_at=dt + timedelta(hours=random.randint(1, 4)),
-                collected_by='Fixed Route R2',
+    for spec in CLUSTER_SPECS:
+        clat, clon, spread = spec['lat'], spec['lon'], spec['spread']
+        for (cat, size, desc) in spec['reports']:
+            est = estimate_waste(size, cat)
+            r = Report(
+                latitude=round(_jitter(clat, spread), 6),
+                longitude=round(_jitter(clon, spread), 6),
+                timestamp=sim_now - timedelta(minutes=random.randint(10, 200)),
+                category=cat,
+                confidence=round(random.uniform(0.68, 0.97), 2),
+                description=desc,
+                size=size,
+                estimated_waste=est,
+                status='QUEUED',
+                is_historical=False,
             )
-            reports.append(report)
-    
-    # Recurring area 2: Near construction site (Cluster 3 area)
-    for day in range(days):
-        if random.random() < 0.35:  # ~10 reports in 30 days
-            dt = now - timedelta(days=day, hours=random.randint(8, 20))
-            report = Report(
-                latitude=19.1055 + random.uniform(-0.0008, 0.0008),
-                longitude=72.8355 + random.uniform(-0.0008, 0.0008),
-                timestamp=dt,
-                category=random.choice(['Construction Waste', 'Mixed Waste']),
-                confidence=0.75,
-                description='Historical: construction debris dumping',
-                size=random.choice(['large', 'medium']),
-                estimated_waste=random.uniform(15, 50),
-                status='COLLECTED',
-                is_historical=True,
-                collected_at=dt + timedelta(hours=random.randint(2, 8)),
-                collected_by='Gap Vehicle G1',
-            )
-            reports.append(report)
-    
-    # Scattered historical reports (not forming clusters)
-    for _ in range(20):
-        dt = now - timedelta(days=random.randint(1, 30), hours=random.randint(6, 22))
-        report = Report(
-            latitude=19.08 + random.uniform(-0.03, 0.04),
-            longitude=72.85 + random.uniform(-0.02, 0.08),
-            timestamp=dt,
-            category=random.choice(CATEGORIES[:6]),
-            confidence=0.70,
-            description='Historical report',
-            size=random.choice(['small', 'medium', 'large']),
-            estimated_waste=random.uniform(2, 15),
-            status='COLLECTED',
-            is_historical=True,
-            collected_at=dt + timedelta(hours=random.randint(1, 6)),
-            collected_by=random.choice(['Fixed Route R1', 'Fixed Route R2', 'Fixed Route R3', 'Gap Vehicle G1']),
-        )
-        reports.append(report)
-    
+            reports.append(r)
     return reports
 
 
 def seed_database():
-    """Seed the entire database for the demo."""
+    """Seed the entire database. Called on first run and on /api/seed/reset."""
     from services.sim_clock import sim_clock
-    from services.priority import compute_priority, estimate_waste
+    from services.priority import compute_priority
     from services.trucks import should_hold_report
-    
-    # Clear everything
+
+    # ── Wipe everything ──
     GapRoute.query.delete()
     Hotspot.query.delete()
     Report.query.delete()
     FixedRoute.query.delete()
     Truck.query.delete()
     db.session.commit()
-    
+
     sim_now = sim_clock.now()
-    
-    # 1. Create fixed trucks
+
+    # ── Fixed trucks ──
     fixed_trucks = []
-    for i, route_data in enumerate(FIXED_ROUTES_DATA):
-        truck = Truck(
-            name=f"FT-{i+1} ({route_data['name'].split(' — ')[1]})",
+    for i, rd in enumerate(FIXED_ROUTES_DATA):
+        t = Truck(
+            name=f"FT-{i+1} ({rd['name'].split(' — ')[1]})",
             type='FIXED',
-            latitude=route_data['waypoints'][0][0],
-            longitude=route_data['waypoints'][0][1],
+            latitude=rd['waypoints'][0][0],
+            longitude=rd['waypoints'][0][1],
             capacity_kg=5000,
-            current_load_kg=random.randint(200, 800),
+            current_load_kg=random.randint(300, 900),
             status='EN_ROUTE',
         )
-        db.session.add(truck)
-        fixed_trucks.append(truck)
-    
-    db.session.flush()  # Get IDs
-    
-    # 2. Create fixed routes
+        db.session.add(t)
+        fixed_trucks.append(t)
+    db.session.flush()
+
+    # ── Fixed routes ──
     fixed_routes = []
-    for i, route_data in enumerate(FIXED_ROUTES_DATA):
+    for i, rd in enumerate(FIXED_ROUTES_DATA):
         route = FixedRoute(
-            name=route_data['name'],
-            waypoints=json.dumps(route_data['waypoints']),
-            geometry=None,  # Will be fetched from OSRM on first load
-            window_start=route_data['window_start'],
-            window_end=route_data['window_end'],
+            name=rd['name'],
+            waypoints=json.dumps(rd['waypoints']),
+            geometry=None,
+            window_start=rd['window_start'],
+            window_end=rd['window_end'],
             truck_id=fixed_trucks[i].id,
         )
         db.session.add(route)
         fixed_routes.append(route)
-    
     db.session.flush()
-    
-    # 3. Create gap vehicles
-    for gap_data in GAP_VEHICLES:
-        truck = Truck(
-            name=gap_data['name'],
+
+    # ── Gap vehicles ──
+    for gd in GAP_VEHICLES:
+        t = Truck(
+            name=gd['name'],
             type='GAP',
-            latitude=gap_data['latitude'],
-            longitude=gap_data['longitude'],
-            capacity_kg=gap_data['capacity_kg'],
-            current_load_kg=gap_data['current_load_kg'],
+            latitude=gd['latitude'],
+            longitude=gd['longitude'],
+            capacity_kg=gd['capacity_kg'],
+            current_load_kg=gd['current_load_kg'],
             status='IDLE',
         )
-        db.session.add(truck)
-    
+        db.session.add(t)
     db.session.flush()
-    
-    # 4. Create historical reports (for hotspot recurrence)
-    historical = create_historical_reports()
+
+    # ── Historical reports ──
+    historical = _make_historical()
     for r in historical:
         db.session.add(r)
-    
     db.session.flush()
-    
-    # 5. Create current reports with HOLD/ESCALATE decisions
-    current_reports = create_current_reports(sim_now)
-    
-    for report in current_reports:
-        db.session.add(report)
-    
+
+    # ── Current reports ──
+    current = _make_current(sim_now)
+    for r in current:
+        db.session.add(r)
     db.session.flush()
-    
-    # 6. Apply HOLD/ESCALATE logic to current reports
-    for report in current_reports:
+
+    # ── HOLD / ESCALATE + priority ──
+    for r in current:
         decision, eta_info = should_hold_report(
-            report.latitude, report.longitude, report.category,
-            fixed_routes, sim_now
+            r.latitude, r.longitude, r.category, fixed_routes, sim_now
         )
-        
         if decision == 'HOLD' and eta_info:
-            report.status = 'HELD'
-            report.held_by_route_id = eta_info['route_id']
-            report.eta_minutes = eta_info['eta_minutes']
+            r.status = 'HELD'
+            r.held_by_route_id = eta_info['route_id']
+            r.eta_minutes = eta_info['eta_minutes']
         else:
-            report.status = 'ESCALATED'
+            r.status = 'ESCALATED'
             if eta_info:
-                report.eta_minutes = eta_info['eta_minutes']
-        
-        # Compute priority
-        priority_result = compute_priority(report, sim_now=sim_now)
-        report.priority = priority_result['priority']
-        report.priority_score = priority_result['score']
-        report.priority_breakdown = json.dumps(priority_result['breakdown'])
-    
-    # 7. Mark some duplicates
-    # Reports at nearly the same location in cluster 1
-    if len(current_reports) >= 4:
-        current_reports[0].duplicate_group_id = 1
-        current_reports[3].duplicate_group_id = 1  # Same plastic pile
-    
+                r.eta_minutes = eta_info.get('eta_minutes')
+
+        pr = compute_priority(r, sim_now=sim_now)
+        r.priority = pr['priority']
+        r.priority_score = pr['score']
+        r.priority_breakdown = json.dumps(pr['breakdown'])
+
+    # ── Mark a couple of duplicates in C1 (first two reports) ──
+    c1_reports = [r for r in current if abs(r.latitude - 19.1248) < 0.002]
+    if len(c1_reports) >= 2:
+        c1_reports[0].duplicate_group_id = 1
+        c1_reports[1].duplicate_group_id = 1
+
     db.session.commit()
-    
-    # 8. Run hotspot analysis
+
+    # ── Run hotspot analysis ──
     run_initial_hotspot_analysis()
-    
-    # Reset sim clock
+
+    # ── Reset sim clock to 08:30 ──
     sim_clock.reset()
-    
+
     return {
         'fixed_routes': len(fixed_routes),
         'fixed_trucks': len(fixed_trucks),
         'gap_vehicles': len(GAP_VEHICLES),
-        'current_reports': len(current_reports),
+        'current_reports': len(current),
         'historical_reports': len(historical),
+        'clusters': len(CLUSTER_SPECS),
     }
 
 
 def run_initial_hotspot_analysis():
-    """Run DBSCAN hotspot analysis on current reports."""
+    """Run DBSCAN hotspot detection on current active reports."""
     from services.hotspots import run_dbscan, check_recurrence, recommend_intervention
-    
-    # Get non-historical, non-collected reports
-    active_reports = Report.query.filter(
+
+    active = Report.query.filter(
         Report.is_historical == False,
         Report.status != 'COLLECTED'
     ).all()
-    
-    historical_reports = Report.query.filter(Report.is_historical == True).all()
-    
-    # Clear existing hotspots
+
+    historical = Report.query.filter(Report.is_historical == True).all()
+
     Hotspot.query.delete()
-    
-    # Run DBSCAN
-    clusters = run_dbscan(active_reports)
-    
-    for cluster_data in clusters:
-        # Check recurrence
-        is_recurring, rec_count, rec_desc = check_recurrence(
-            cluster_data['center_lat'],
-            cluster_data['center_lon'],
-            historical_reports
+    db.session.flush()
+
+    clusters = run_dbscan(active)
+
+    for cd in clusters:
+        is_rec, rec_count, rec_desc = check_recurrence(
+            cd['center_lat'], cd['center_lon'], historical
         )
-        
-        # Get intervention recommendation
-        intervention = recommend_intervention(cluster_data)
-        
-        hotspot = Hotspot(
-            latitude=cluster_data['center_lat'],
-            longitude=cluster_data['center_lon'],
-            report_count=cluster_data['report_count'],
-            estimated_waste=cluster_data['estimated_waste'],
-            priority='HIGH' if is_recurring else 'MEDIUM',
-            recurring=is_recurring,
+        intervention = recommend_intervention(cd)
+
+        h = Hotspot(
+            latitude=cd['center_lat'],
+            longitude=cd['center_lon'],
+            report_count=cd['report_count'],
+            estimated_waste=cd['estimated_waste'],
+            priority='HIGH' if is_rec else 'MEDIUM',
+            recurring=is_rec,
             recurrence_count=rec_count,
             recommendation=json.dumps({
                 'recurrence_description': rec_desc,
                 'intervention': intervention,
-                'categories': cluster_data['categories'],
-                'dominant_category': cluster_data['dominant_category'],
+                'categories': cd['categories'],
+                'dominant_category': cd['dominant_category'],
             }),
         )
-        db.session.add(hotspot)
-        
-        # Link reports to hotspot
-        for report_id in cluster_data['report_ids']:
-            report = Report.query.get(report_id)
-            if report:
-                report.hotspot_id = hotspot.id
-    
+        db.session.add(h)
+        db.session.flush()
+
+        for rid in cd['report_ids']:
+            rpt = Report.query.get(rid)
+            if rpt:
+                rpt.hotspot_id = h.id
+
     db.session.commit()
