@@ -1123,3 +1123,300 @@ body {
   background: rgba(239,68,68,0.1);
   color: #ef4444;
 }
+
+
+/* ============================================================
+   PORTAL SELECT — landing page
+   ============================================================ */
+
+.portal-select-bg {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.portal-select-wrapper {
+  width: 100%;
+  max-width: 860px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.portal-brand {
+  text-align: center;
+}
+
+.portal-logo {
+  font-size: 56px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 24px rgba(45,212,191,0.4));
+}
+
+.portal-brand-title {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.portal-brand-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 6px;
+}
+
+.portal-prompt {
+  font-size: 18px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.portal-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .portal-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.portal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 28px 24px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.portal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 18px 18px 0 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.portal-card-citizen::before {
+  background: linear-gradient(90deg, var(--accent-teal), var(--accent-blue));
+}
+
+.portal-card-municipal::before {
+  background: linear-gradient(90deg, var(--accent-amber), var(--accent-red));
+}
+
+.portal-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+.portal-card:hover::before {
+  opacity: 1;
+}
+
+.portal-card-citizen:hover {
+  box-shadow: 0 8px 32px rgba(45,212,191,0.15);
+}
+
+.portal-card-municipal:hover {
+  box-shadow: 0 8px 32px rgba(245,158,11,0.15);
+}
+
+.portal-card-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.portal-card-body {
+  flex: 1;
+}
+
+.portal-card-body h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.portal-card-body > p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.portal-card-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portal-card-features li {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.portal-card-arrow {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  font-size: 20px;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.portal-card:hover .portal-card-arrow {
+  color: var(--text-primary);
+  transform: translateX(4px);
+}
+
+.portal-footer-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ============================================================
+   PORTAL BACK BUTTON (shared)
+   ============================================================ */
+
+.portal-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.portal-back-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.portal-back-btn--sidebar {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+/* ============================================================
+   CITIZEN PORTAL LAYOUT
+   ============================================================ */
+
+.citizen-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.citizen-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.citizen-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.citizen-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.citizen-brand-icon {
+  font-size: 24px;
+}
+
+.citizen-brand-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.citizen-brand-badge {
+  display: inline-block;
+  margin-left: 8px;
+  background: rgba(45,212,191,0.12);
+  color: var(--accent-teal);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  vertical-align: middle;
+}
+
+.citizen-header-right {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.citizen-main {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 28px;
+}
+
+.citizen-footer {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  padding: 14px 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
