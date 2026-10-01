@@ -190,8 +190,8 @@ export default function Dashboard({ clock }) {
 
               {/* Fixed Routes — blue dashed */}
               {fixedRoutes.map(route => (
-                <Polyline key={`fr-${route.id}`} positions={route.waypoints}
-                  pathOptions={{ color: '#4b8df8', weight: 3, opacity: 0.5, dashArray: '8, 6' }}>
+                <Polyline key={`fr-${route.id}`} positions={route.geometry || route.waypoints}
+                  pathOptions={{ color: '#4b8df8', weight: 3, opacity: 0.6, dashArray: '8, 6' }}>
                   <Popup>
                     <div style={{ fontFamily: 'Inter, sans-serif' }}>
                       <strong>🔒 {route.name}</strong><br />

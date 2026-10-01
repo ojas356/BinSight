@@ -400,10 +400,13 @@ def seed_database():
     # ── Fixed routes ──
     fixed_routes = []
     for i, rd in enumerate(FIXED_ROUTES_DATA):
+        # Fetch real road geometry from OSRM
+        from services.routing import get_osrm_route
+        road_geom, _ = get_osrm_route(rd['waypoints'])
         route = FixedRoute(
             name=rd['name'],
             waypoints=json.dumps(rd['waypoints']),
-            geometry=None,
+            geometry=json.dumps(road_geom) if road_geom else None,
             window_start=rd['window_start'],
             window_end=rd['window_end'],
             truck_id=fixed_trucks[i].id,
