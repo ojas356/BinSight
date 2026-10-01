@@ -189,8 +189,11 @@ export default function Dashboard({ clock }) {
               {mapCenter && <MapUpdater center={mapCenter} />}
 
               {/* Fixed Routes — blue dashed */}
-              {fixedRoutes.map(route => (
-                <Polyline key={`fr-${route.id}`} positions={route.geometry || route.waypoints}
+              {fixedRoutes.map(route => {
+                const path = route.geometry || route.waypoints;
+                if (!path || path.length < 2) return null;
+                return (
+                <Polyline key={`fr-${route.id}`} positions={path}
                   pathOptions={{ color: '#4b8df8', weight: 3, opacity: 0.6, dashArray: '8, 6' }}>
                   <Popup>
                     <div style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -200,7 +203,8 @@ export default function Dashboard({ clock }) {
                     </div>
                   </Popup>
                 </Polyline>
-              ))}
+                );
+              })}
 
               {/* Gap Route — orange solid */}
               {activeGapRoute?.geometry && (

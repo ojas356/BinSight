@@ -400,13 +400,14 @@ def seed_database():
     # ── Fixed routes ──
     fixed_routes = []
     for i, rd in enumerate(FIXED_ROUTES_DATA):
-        # Fetch real road geometry from OSRM
-        from services.routing import get_osrm_route
-        road_geom, _ = get_osrm_route(rd['waypoints'])
+        # Fetch real road geometry — try Mapbox first, then OSRM
+        from services.routing import get_road_route
+        road_geom, _, source = get_road_route(rd['waypoints'])
+        print(f"  Route {rd['name']}: geometry source = {source}, points = {len(road_geom) if road_geom else 0}")
         route = FixedRoute(
             name=rd['name'],
             waypoints=json.dumps(rd['waypoints']),
-            geometry=json.dumps(road_geom) if road_geom else None,
+            geometry=json.dumps(road_geom) if road_geom else json.dumps(rd['waypoints']),
             window_start=rd['window_start'],
             window_end=rd['window_end'],
             truck_id=fixed_trucks[i].id,
