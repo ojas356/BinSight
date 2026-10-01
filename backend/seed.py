@@ -2,14 +2,17 @@
 
 Mumbai-area demo data designed to produce clear, visible results:
 
-CURRENT REPORTS — 5 tight geographic clusters:
-  C1  Andheri East / Sakinaka      ~8 reports  (near R1 → some HELD)
-  C2  Kurla Market                 ~9 reports  (near R2 → some HELD, recurring hotspot)
-  C3  Ghatkopar LBS Marg           ~7 reports  (near R3 → some HELD)
-  C4  Dharavi / Sion               ~8 reports  (far from routes → all ESCALATE, hazardous mix)
-  C5  Bandra Kurla Complex         ~7 reports  (construction + mixed, all ESCALATE)
+CURRENT REPORTS — 8 tight geographic clusters:
+  C1  Andheri East / Sakinaka      8 reports   (near R1 → some HELD, recurring)
+  C2  Kurla Market                 9 reports   (near R2 → some HELD, recurring hotspot)
+  C3  Ghatkopar LBS Marg           7 reports   (near R3 → some HELD)
+  C4  Dharavi / Sion               8 reports   (far → all ESCALATED, hazardous, recurring)
+  C5  Bandra Kurla Complex         7 reports   (far → all ESCALATED, construction)
+  C6  Worli / Lower Parel          9 reports   (far → all ESCALATED, urban mixed)
+  C7  Chembur                      8 reports   (far → all ESCALATED, recurring residential)
+  C8  Malad West                   7 reports   (far → all ESCALATED, creek boundary)
 
-HISTORICAL REPORTS — 45 days of data that makes C1, C2, C4 show as RECURRING hotspots.
+HISTORICAL REPORTS — 45 days, 4 recurring zones (C1, C2, C4, C7).
 
 Fixed routes: R1 Andheri East, R2 Kurla West, R3 Ghatkopar
 Gap vehicles: G1 near Sakinaka, G2 near Kurla
@@ -178,6 +181,54 @@ CLUSTER_SPECS = [
             ('Mixed Waste',       'small',  'Scattered waste near security checkpoint'),
         ],
     },
+    # C6 — Worli / Lower Parel  (mixed urban, far from routes → ESCALATED)
+    {
+        'id': 'C6', 'name': 'Worli / Lower Parel',
+        'lat': 19.0130, 'lon': 72.8200,
+        'spread': 0.0006,
+        'reports': [
+            ('Mixed Waste',       'large',  'Garbage dump behind textile mill compound'),
+            ('Plastic',           'large',  'Plastic bags and bottles near flyover pillar'),
+            ('Organic',           'medium', 'Food waste from office complex mess'),
+            ('Mixed Waste',       'medium', 'Overflow from public bin near bus terminus'),
+            ('Paper',             'medium', 'Cardboard and packaging from furniture shop'),
+            ('Glass',             'small',  'Broken glass near construction hoarding'),
+            ('Metal',             'small',  'Discarded scrap near workshop lane'),
+            ('Mixed Waste',       'large',  'Bulk waste behind demolished building'),
+            ('Plastic',           'small',  'Plastic cups and wrappers at street corner'),
+        ],
+    },
+    # C7 — Chembur  (residential, far from routes → ESCALATED, recurring dump)
+    {
+        'id': 'C7', 'name': 'Chembur',
+        'lat': 19.0620, 'lon': 72.8990,
+        'spread': 0.0007,
+        'reports': [
+            ('Organic',           'large',  'Vegetable and food waste near chawl entrance'),
+            ('Mixed Waste',       'large',  'Communal bin overflowing, no collection in 3 days'),
+            ('Plastic',           'medium', 'Bags and packaging dumped on railway feeder road'),
+            ('Construction Waste','large',  'Debris from illegal extension near compound wall'),
+            ('Organic',           'medium', 'Kitchen waste dumped in open storm drain'),
+            ('Mixed Waste',       'medium', 'Garbage heap near Chembur naka signal'),
+            ('Metal',             'small',  'Old appliances and scrap near repair shop'),
+            ('Plastic',           'large',  'Bulk plastic waste near recycling vendor'),
+        ],
+    },
+    # C8 — Malad West  (far north, near no route → all ESCALATED)
+    {
+        'id': 'C8', 'name': 'Malad West',
+        'lat': 19.1870, 'lon': 72.8480,
+        'spread': 0.0007,
+        'reports': [
+            ('Mixed Waste',       'large',  'Large dump near Malad creek mangrove boundary'),
+            ('Plastic',           'large',  'Plastic waste blocking creek inlet'),
+            ('Construction Waste','large',  'Rubble from building demolition on link road'),
+            ('Organic',           'medium', 'Fish market waste left overnight near jetty'),
+            ('Mixed Waste',       'medium', 'Residential waste near Malad station bridge'),
+            ('Medical/Hazardous', 'small',  'Discarded medicine packaging near clinic'),
+            ('Paper',             'medium', 'Bulk paper waste outside printing press'),
+        ],
+    },
 ]
 
 # ── Historical recurrence specs ───────────────────────────────
@@ -192,6 +243,9 @@ HISTORICAL_SPECS = [
     # C4 area — moderate-high recurrence (persistent hazardous dump)
     (19.0420, 72.8550, 0.0009, 45, 0.50,
      ['Medical/Hazardous', 'Mixed Waste', 'Construction Waste'], 'Gap Vehicle G1'),
+    # C7 area — recurring residential dump (Chembur)
+    (19.0620, 72.8990, 0.0008, 45, 0.60,
+     ['Organic', 'Mixed Waste', 'Plastic'], 'Gap Vehicle G2'),
     # Scattered background noise (won't cluster)
     (19.0900, 72.8800, 0.0200, 45, 0.25,
      ['Mixed Waste', 'Plastic', 'Organic'], 'Fixed Route R3'),
