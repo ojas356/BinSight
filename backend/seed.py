@@ -306,6 +306,65 @@ def _make_current(sim_now):
     return reports
 
 
+def _make_scattered(sim_now):
+    """
+    ~25 individual scattered reports spread across Mumbai.
+    Large jitter (0.01–0.03 deg) so they appear isolated on the map
+    rather than clustering — these will all ESCALATE and won't form hotspots.
+    """
+    from services.priority import estimate_waste
+
+    # (lat, lon, category, size, description)
+    SCATTERED = [
+        (19.1550, 72.8350, 'Mixed Waste',        'large',  'Large garbage pile near Borivali station entrance'),
+        (19.1480, 72.8580, 'Plastic',             'medium', 'Plastic bags dumped behind petrol station'),
+        (19.1320, 72.9100, 'Construction Waste',  'large',  'Demolition rubble blocking lane in Mulund'),
+        (19.1150, 72.8900, 'Organic',             'medium', 'Food waste near Vikhroli industrial area'),
+        (19.0980, 72.8400, 'Mixed Waste',         'medium', 'Bin overflow near Powai lake road'),
+        (19.0760, 72.8600, 'Plastic',             'small',  'Plastic wrappers at Sion circle underpass'),
+        (19.0550, 72.8350, 'Metal',               'medium', 'Scrap metal dumped near Mahim causeway'),
+        (19.0350, 72.8400, 'Mixed Waste',         'large',  'Uncollected waste near Dadar flower market'),
+        (19.0200, 72.8300, 'Organic',             'large',  'Fish waste near Worli koliwada'),
+        (19.0080, 72.8200, 'Construction Waste',  'large',  'Rubble near Prabhadevi metro construction'),
+        (18.9960, 72.8150, 'Mixed Waste',         'medium', 'Garbage near Parel bus depot'),
+        (18.9800, 72.8100, 'Plastic',             'large',  'Bulk plastic near Sewri port approach'),
+        (19.1700, 72.8650, 'Medical/Hazardous',   'small',  'Medical waste near Kandivali clinic'),
+        (19.1050, 72.8750, 'Mixed Waste',         'medium', 'Bin overflow near Powai IT park'),
+        (19.0900, 72.8300, 'Paper',               'medium', 'Paper waste outside Sion printing press'),
+        (19.0700, 72.8450, 'Organic',             'medium', 'Food court waste near Bandra highway'),
+        (19.0450, 72.8750, 'Construction Waste',  'medium', 'Sand spill near Chembur highway work'),
+        (19.0310, 72.8600, 'Glass',               'small',  'Broken bottles near Antop Hill signal'),
+        (19.1400, 72.8200, 'Mixed Waste',         'large',  'Uncollected waste near Dahisar check naka'),
+        (19.1260, 72.8400, 'Plastic',             'medium', 'Plastic dump near Goregaon film city road'),
+        (19.0830, 72.8550, 'Metal',               'small',  'Old wiring and scrap near Dharavi workshop'),
+        (19.0600, 72.8820, 'Mixed Waste',         'medium', 'Overflowing bin near Kurla bus depot'),
+        (19.1620, 72.9050, 'Organic',             'medium', 'Vegetable waste near Thane creek road'),
+        (19.0180, 72.8450, 'Mixed Waste',         'large',  'Bulk refuse near Matunga railway quarters'),
+        (19.0050, 72.8300, 'Construction Waste',  'large',  'Building debris near Hindmata junction'),
+    ]
+
+    reports = []
+    for (lat, lon, cat, size, desc) in SCATTERED:
+        # Small random jitter so repeated resets don't stack on exact same point
+        jlat = round(lat + random.uniform(-0.0015, 0.0015), 6)
+        jlon = round(lon + random.uniform(-0.0015, 0.0015), 6)
+        est = estimate_waste(size, cat)
+        r = Report(
+            latitude=jlat,
+            longitude=jlon,
+            timestamp=sim_now - timedelta(minutes=random.randint(15, 300)),
+            category=cat,
+            confidence=round(random.uniform(0.65, 0.95), 2),
+            description=desc,
+            size=size,
+            estimated_waste=est,
+            status='QUEUED',
+            is_historical=False,
+        )
+        reports.append(r)
+    return reports
+
+
 def seed_database():
     """Seed the entire database. Called on first run and on /api/seed/reset."""
     from services.sim_clock import sim_clock
@@ -373,14 +432,22 @@ def seed_database():
         db.session.add(r)
     db.session.flush()
 
-    # ── Current reports ──
+    # ── Current reports (clustered) ──
     current = _make_current(sim_now)
     for r in current:
         db.session.add(r)
     db.session.flush()
 
+    # ── Scattered individual reports ──
+    scattered = _make_scattered(sim_now)
+    for r in scattered:
+        db.session.add(r)
+    db.session.flush()
+
+    all_current = current + scattered
+
     # ── HOLD / ESCALATE + priority ──
-    for r in current:
+    for r in all_current:
         decision, eta_info = should_hold_report(
             r.latitude, r.longitude, r.category, fixed_routes, sim_now
         )
@@ -416,7 +483,8 @@ def seed_database():
         'fixed_routes': len(fixed_routes),
         'fixed_trucks': len(fixed_trucks),
         'gap_vehicles': len(GAP_VEHICLES),
-        'current_reports': len(current),
+        'current_reports': len(all_current),
+        'scattered_reports': len(scattered),
         'historical_reports': len(historical),
         'clusters': len(CLUSTER_SPECS),
     }
