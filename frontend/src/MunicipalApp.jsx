@@ -34,23 +34,31 @@ export default function MunicipalApp({ onBack }) {
   }, [user, fetchClock]);
 
   const handleSpeedChange = async (speed) => {
-    const { data } = await setClock({ speed });
-    setClockState(data);
+    try {
+      const { data } = await setClock({ speed });
+      setClockState(data);
+    } catch (e) { console.error('Clock speed error', e); }
   };
 
   const handleJumpMorning = async () => {
-    const { data } = await setClock({ jump_to_hour: 8, jump_to_minute: 30 });
-    setClockState(data);
+    try {
+      const { data } = await setClock({ jump_to_hour: 8, jump_to_minute: 30 });
+      setClockState(data);
+    } catch (e) { console.error('Clock jump error', e); }
   };
 
   const handleJumpAfternoon = async () => {
-    const { data } = await setClock({ jump_to_hour: 15, jump_to_minute: 0 });
-    setClockState(data);
+    try {
+      const { data } = await setClock({ jump_to_hour: 15, jump_to_minute: 0 });
+      setClockState(data);
+    } catch (e) { console.error('Clock jump error', e); }
   };
 
   const handlePause = async () => {
-    const { data } = await setClock({ pause: !clock?.paused });
-    setClockState(data);
+    try {
+      const { data } = await setClock({ pause: !clock?.paused });
+      setClockState(data);
+    } catch (e) { console.error('Clock pause error', e); }
   };
 
   const handleLogout = () => {
@@ -72,18 +80,18 @@ export default function MunicipalApp({ onBack }) {
         <aside className="sidebar">
           <div className="sidebar-brand">
             <h1>BIN SIGHT</h1>
-            <p>Municipal Dashboard</p>
+            <p>Municipal Operations</p>
           </div>
 
           <nav className="sidebar-nav">
             <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <span className="nav-icon">📊</span> Dashboard
+              <span className="nav-icon">📊</span> Operations
             </NavLink>
             <NavLink to="/hotspots" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <span className="nav-icon">🔥</span> Hotspots
             </NavLink>
             <NavLink to="/routes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <span className="nav-icon">🚛</span> Routes
+              <span className="nav-icon">🚛</span> Routes & Dispatch
             </NavLink>
           </nav>
 

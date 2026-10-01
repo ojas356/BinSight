@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { createReport } from '../services/api';
 
-
 const CATEGORIES = [
   'Plastic', 'Paper', 'Glass', 'Metal', 'Organic',
   'Mixed Waste', 'Construction Waste', 'Medical/Hazardous', 'Other'
@@ -46,7 +45,6 @@ export default function CitizenReport() {
           setGettingLocation(false);
         },
         () => {
-          // Fallback: Mumbai area
           setPosition([19.1136, 72.8697]);
           setGettingLocation(false);
         }
@@ -71,7 +69,7 @@ export default function CitizenReport() {
       alert('Please set a location');
       return;
     }
-    
+
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -85,7 +83,7 @@ export default function CitizenReport() {
       const { data } = await createReport(formData);
       setResult(data);
     } catch (e) {
-      alert('Failed to submit report');
+      alert('Failed to submit report. Please try again.');
       console.error(e);
     } finally {
       setSubmitting(false);
@@ -102,82 +100,115 @@ export default function CitizenReport() {
     setPosition(null);
   };
 
+  // ── RESULT VIEW ──
   if (result) {
+    const report = result.report;
+    const aiClass = result.ai_classification;
+
     return (
-      <div className="fade-in" style={{ maxWidth: 640 }}>
-        <div className="page-header">
-          <h2 className="page-title">✅ Report Submitted</h2>
-          <p className="page-subtitle">Report #{result.report?.id} has been created</p>
+      <div className="fade-in" style={{ maxWidth: 600 }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: 20 }}>
+          <h2 className="page-title">Report Received</h2>
+          <p className="page-subtitle">Report #{report?.id} — processing complete</p>
         </div>
 
         {/* AI Classification */}
-        {result.ai_classification && (
+        {aiClass && (
           <div className="classification-result slide-up">
             <span className="ai-icon">🤖</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>AI Classification: {result.ai_classification.category}</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>AI Classification: {aiClass.category}</div>
               <div className="classification-confidence">
-                Confidence: {Math.round(result.ai_classification.confidence * 100)}%
+                Confidence: {Math.round(aiClass.confidence * 100)}%
+                <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--text-muted)' }}>
+                  — helps determine severity & collection requirements
+                </span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button className="btn btn-sm btn-primary">✓ Confirm</button>
-              <button className="btn btn-sm btn-outline">Change</button>
+            <span className="badge badge-collected" style={{ flexShrink: 0 }}>✓ Auto-applied</span>
+          </div>
+        )}
+
+        {/* Duplicate Check */}
+        {result.outcome === 'DUPLICATE' && (
+          <div className="card slide-up" style={{ marginBottom: 14, borderLeft: '3px solid #8b5cf6' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#8b5cf6', marginBottom: 4 }}>DUPLICATE DETECTED</div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              {result.duplicate_info?.message}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+              Existing report category: {result.duplicate_info?.existing_category} ·
+              Distance: {result.duplicate_info?.distance_meters}m ·
+              Time diff: {result.duplicate_info?.time_diff_hours}h
             </div>
           </div>
         )}
 
-        {/* Outcome */}
+        {/* DECISION — the core outcome */}
         {result.outcome === 'HELD' && (
           <div className="outcome-card held slide-up">
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '1.5px', color: 'var(--text-muted)', marginBottom: 8 }}>DECISION</div>
             <div className="outcome-icon">⏳</div>
-            <div className="outcome-title" style={{ color: '#3b82f6' }}>Held for Collection</div>
+            <div className="outcome-title" style={{ color: 'var(--scheduled)' }}>HOLD — Scheduled Truck Approaching</div>
             <div className="outcome-message">{result.hold_info?.message}</div>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+              Route: {result.hold_info?.route_name} · ETA: ~{result.hold_info?.eta_minutes} min
+            </div>
           </div>
         )}
 
         {result.outcome === 'ESCALATED' && (
           <div className="outcome-card escalated slide-up">
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '1.5px', color: 'var(--text-muted)', marginBottom: 8 }}>DECISION</div>
             <div className="outcome-icon">🚐</div>
-            <div className="outcome-title" style={{ color: '#f59e0b' }}>Escalated to Gap Crew</div>
+            <div className="outcome-title" style={{ color: 'var(--escalated)' }}>ESCALATE — Gap Crew Dispatched</div>
             <div className="outcome-message">{result.escalate_info?.message}</div>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+              No scheduled collection expected soon. Added to on-demand response queue.
+            </div>
           </div>
         )}
 
         {result.outcome === 'DUPLICATE' && (
           <div className="outcome-card duplicate slide-up">
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '1.5px', color: 'var(--text-muted)', marginBottom: 8 }}>DECISION</div>
             <div className="outcome-icon">🔗</div>
-            <div className="outcome-title">Possible Duplicate</div>
-            <div className="outcome-message">{result.duplicate_info?.message}</div>
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-              Existing report category: {result.duplicate_info?.existing_category}<br />
-              Distance: {result.duplicate_info?.distance_meters}m • Time diff: {result.duplicate_info?.time_diff_hours}h
-            </div>
+            <div className="outcome-title" style={{ color: '#8b5cf6' }}>GROUPED — Linked to Existing Report</div>
+            <div className="outcome-message">Your report has been linked to a nearby existing report. No separate dispatch needed.</div>
           </div>
         )}
 
         {/* Report Details */}
-        <div className="card slide-up" style={{ marginTop: 20 }}>
-          <div className="card-title" style={{ marginBottom: 12 }}>Report Details</div>
-          <div className="detail-row"><span className="detail-label">Category</span><span className="detail-value">{result.report?.category}</span></div>
-          <div className="detail-row"><span className="detail-label">Priority</span><span className={`badge badge-${result.report?.priority?.toLowerCase()}`}>{result.report?.priority} ({result.report?.priority_score})</span></div>
-          <div className="detail-row"><span className="detail-label">Size</span><span className="detail-value">{result.report?.size} ({result.report?.estimated_waste} kg)</span></div>
-          <div className="detail-row"><span className="detail-label">Status</span><span className={`badge badge-${result.report?.status?.toLowerCase()}`}>{result.report?.status}</span></div>
-          <div className="detail-row"><span className="detail-label">Location</span><span className="detail-value">{result.report?.latitude?.toFixed(4)}, {result.report?.longitude?.toFixed(4)}</span></div>
+        <div className="card slide-up" style={{ marginTop: 16 }}>
+          <div className="card-title" style={{ marginBottom: 10 }}>Report Details</div>
+          <div className="detail-row"><span className="detail-label">Category</span><span className="detail-value">{report?.category}</span></div>
+          <div className="detail-row"><span className="detail-label">Priority</span><span className={`badge badge-${report?.priority?.toLowerCase()}`}>{report?.priority} ({report?.priority_score})</span></div>
+          <div className="detail-row"><span className="detail-label">Size</span><span className="detail-value">{report?.size} ({report?.estimated_waste} kg)</span></div>
+          <div className="detail-row"><span className="detail-label">Status</span><span className={`badge badge-${report?.status?.toLowerCase()}`}>{report?.status}</span></div>
+          <div className="detail-row"><span className="detail-label">Location</span><span className="detail-value" style={{ fontVariantNumeric: 'tabular-nums' }}>{report?.latitude?.toFixed(4)}, {report?.longitude?.toFixed(4)}</span></div>
         </div>
 
-        <button className="btn btn-primary" onClick={handleNewReport} style={{ marginTop: 20 }}>
+        {/* Intelligence Pipeline Note */}
+        <div className="demo-note" style={{ marginTop: 14 }}>
+          <strong>How this decision was made:</strong> BinSight combined your image, location, time, nearby duplicate reports, 
+          scheduled truck ETA, and waste severity to determine whether a scheduled truck will handle it — or a gap crew is needed.
+        </div>
+
+        <button className="btn btn-primary" onClick={handleNewReport} style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}>
           📸 Submit Another Report
         </button>
       </div>
     );
   }
 
+  // ── FORM VIEW ──
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2 className="page-title">📸 Report Waste</h2>
-        <p className="page-subtitle">Upload a photo and location to report waste accumulation in your area</p>
+        <h2 className="page-title">Report Waste</h2>
+        <p className="page-subtitle">Upload a photo and location · AI classifies waste type · System decides response</p>
       </div>
 
       <div className="two-col">
@@ -192,13 +223,13 @@ export default function CitizenReport() {
               {imagePreview ? (
                 <>
                   <img src={imagePreview} alt="Preview" className="upload-preview" />
-                  <div className="upload-text" style={{ marginTop: 8 }}>{image.name}</div>
+                  <div className="upload-text" style={{ marginTop: 6 }}>{image.name}</div>
                 </>
               ) : (
                 <>
                   <div className="upload-icon">📷</div>
                   <div className="upload-text">Click to upload a photo of the waste</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>JPG, PNG up to 10MB</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>JPG, PNG up to 10MB</div>
                 </>
               )}
             </div>
@@ -208,11 +239,11 @@ export default function CitizenReport() {
           {/* Location */}
           <div className="form-group">
             <label className="form-label">Location</label>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               <button type="button" className="btn btn-primary btn-sm" onClick={handleGetLocation} disabled={gettingLocation}>
                 {gettingLocation ? <span className="loading-spinner"></span> : '📍'} Use My Location
               </button>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center' }}>or click on the map →</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>or click the map →</span>
             </div>
             {position && (
               <div className="location-display">
@@ -258,28 +289,28 @@ export default function CitizenReport() {
             </select>
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={submitting || !position}>
+          <button type="submit" className="btn btn-primary" disabled={submitting || !position} style={{ width: '100%', justifyContent: 'center' }}>
             {submitting ? <span className="loading-spinner"></span> : '📤'} Submit Report
           </button>
         </form>
 
-        {/* Map for location picking */}
+        {/* Map */}
         <div>
           <label className="form-label">Pick Location on Map</label>
-          <div className="map-container" style={{ height: 400 }}>
+          <div className="map-container" style={{ height: 420 }}>
             <MapContainer
               center={position || [19.1000, 72.8700]}
               zoom={14}
               style={{ height: '100%', width: '100%' }}
             >
               <TileLayer
-                url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               />
               <LocationPicker position={position} setPosition={setPosition} />
             </MapContainer>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
             Click on the map to set the waste location
           </div>
         </div>

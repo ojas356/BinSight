@@ -21,6 +21,11 @@ from datetime import datetime
 from services.sim_clock import sim_clock
 from services.duplicates import haversine_distance
 
+
+def _f(v):
+    """Cast any numeric to a plain Python float (handles numpy.float64 etc.)."""
+    return float(v)
+
 # Traffic multipliers
 TRAFFIC_MULTIPLIERS = {
     'LOW': 1.0,
@@ -327,18 +332,24 @@ def generate_gap_route(reports, gap_trucks, sim_now=None):
     total_time_min = travel_time_min + stop_time_min
     
     return {
-        'truck_id': truck.id,
+        'truck_id': int(truck.id),
         'truck_name': truck.name,
-        'stops': ordered,
-        'geometry': geometry,
-        'total_distance': round(total_distance, 2),
-        'adjusted_distance': round(adjusted_distance, 2),
-        'estimated_waste': round(total_waste, 1),
-        'remaining_capacity': round(available_capacity - total_waste, 1),
+        'stops': [
+            {**s,
+             'lat': _f(s['lat']),
+             'lon': _f(s['lon']),
+             'estimated_waste': _f(s['estimated_waste'])}
+            for s in ordered
+        ],
+        'geometry': [[_f(c[0]), _f(c[1])] for c in geometry],
+        'total_distance': round(_f(total_distance), 2),
+        'adjusted_distance': round(_f(adjusted_distance), 2),
+        'estimated_waste': round(_f(total_waste), 1),
+        'remaining_capacity': round(_f(available_capacity - total_waste), 1),
         'traffic_level': traffic_level,
-        'traffic_multiplier': traffic_multiplier,
-        'estimated_time_min': round(total_time_min),
+        'traffic_multiplier': _f(traffic_multiplier),
+        'estimated_time_min': round(_f(total_time_min)),
         'num_stops': len(ordered),
         'route_source': route_source,
-        'needs_depot_return': needs_depot_return,
+        'needs_depot_return': bool(needs_depot_return),
     }

@@ -8,12 +8,25 @@ Fixed routes are READ-ONLY. No endpoint modifies them.
 """
 import os
 import json
+import numpy as np
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory
+from flask.json.provider import DefaultJSONProvider
 
 # Load .env before anything else so all services pick up the keys
 load_dotenv()
+
+class NumpySafeJSONProvider(DefaultJSONProvider):
+    """JSON provider that handles numpy scalars so jsonify never crashes."""
+    def default(self, o):
+        if isinstance(o, (np.integer,)):
+            return int(o)
+        if isinstance(o, (np.floating,)):
+            return float(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return super().default(o)
 from flask_cors import CORS
 from database import db, init_db
 from models import Report, Truck, FixedRoute, Hotspot, GapRoute
@@ -29,6 +42,8 @@ from services.routing import generate_gap_route, get_traffic_level
 from services.classification import classify
 
 app = Flask(__name__)
+app.json_provider_class = NumpySafeJSONProvider
+app.json = NumpySafeJSONProvider(app)
 CORS(app)
 
 # Upload directory
@@ -401,34 +416,38 @@ def get_routes():
 @app.route('/api/routes/generate', methods=['POST'])
 def generate_route():
     """Generate an optimized gap crew collection route."""
-    reports = Report.query.filter(
-        Report.is_historical == False,
-        Report.status == 'ESCALATED'
-    ).all()
-    
-    gap_trucks = Truck.query.filter_by(type='GAP').all()
-    
-    result = generate_gap_route(reports, gap_trucks, sim_clock.now())
-    
-    if 'error' in result:
-        return jsonify(result), 400
-    
-    # Save route to database
-    gap_route = GapRoute(
-        truck_id=result['truck_id'],
-        stops=json.dumps(result['stops']),
-        geometry=json.dumps(result['geometry']),
-        total_distance=result['total_distance'],
-        estimated_waste=result['estimated_waste'],
-        traffic_level=result['traffic_level'],
-        traffic_multiplier=result['traffic_multiplier'],
-        status='PLANNED',
-    )
-    db.session.add(gap_route)
-    db.session.commit()
-    
-    result['route_id'] = gap_route.id
-    return jsonify(result), 201
+    try:
+        reports = Report.query.filter(
+            Report.is_historical == False,
+            Report.status == 'ESCALATED'
+        ).all()
+        
+        gap_trucks = Truck.query.filter_by(type='GAP').all()
+        
+        result = generate_gap_route(reports, gap_trucks, sim_clock.now())
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        # Save route to database
+        gap_route = GapRoute(
+            truck_id=result['truck_id'],
+            stops=json.dumps(result['stops']),
+            geometry=json.dumps(result['geometry']),
+            total_distance=result['total_distance'],
+            estimated_waste=result['estimated_waste'],
+            traffic_level=result['traffic_level'],
+            traffic_multiplier=result['traffic_multiplier'],
+            status='PLANNED',
+        )
+        db.session.add(gap_route)
+        db.session.commit()
+        
+        result['route_id'] = gap_route.id
+        return jsonify(result), 201
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 @app.route('/api/routes/<int:route_id>/start', methods=['POST'])
@@ -672,4 +691,4 @@ if __name__ == '__main__':
             seed_database()
             print("Demo data seeded!")
     
-    app.run(debug=False, port=5000, use_reloader=False)
+    app.run(debug=True, port=5000, use_reloader=False)
