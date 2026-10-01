@@ -103,7 +103,6 @@ export default function CitizenReport() {
   // ── RESULT VIEW ──
   if (result) {
     const report = result.report;
-    const aiClass = result.ai_classification;
 
     return (
       <div className="fade-in" style={{ maxWidth: 600 }}>
@@ -113,23 +112,6 @@ export default function CitizenReport() {
           <h2 className="page-title">Report Received</h2>
           <p className="page-subtitle">Report #{report?.id} — processing complete</p>
         </div>
-
-        {/* AI Classification */}
-        {aiClass && (
-          <div className="classification-result slide-up">
-            <span className="ai-icon">🤖</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>AI Classification: {aiClass.category}</div>
-              <div className="classification-confidence">
-                Confidence: {Math.round(aiClass.confidence * 100)}%
-                <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--text-muted)' }}>
-                  — helps determine severity & collection requirements
-                </span>
-              </div>
-            </div>
-            <span className="badge badge-collected" style={{ flexShrink: 0 }}>✓ Auto-applied</span>
-          </div>
-        )}
 
         {/* Duplicate Check */}
         {result.outcome === 'DUPLICATE' && (
@@ -192,8 +174,9 @@ export default function CitizenReport() {
 
         {/* Intelligence Pipeline Note */}
         <div className="demo-note" style={{ marginTop: 14 }}>
-          <strong>How this decision was made:</strong> BinSight combined your image, location, time, nearby duplicate reports, 
-          scheduled truck ETA, and waste severity to determine whether a scheduled truck will handle it — or a gap crew is needed.
+          <strong>How this decision was made:</strong> BinSight combined your location, reported category, time of day, 
+          nearby duplicate reports, scheduled truck ETA, and waste severity to determine whether a scheduled truck 
+          will handle it — or a gap crew needs to be dispatched.
         </div>
 
         <button className="btn btn-primary" onClick={handleNewReport} style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}>
@@ -208,7 +191,7 @@ export default function CitizenReport() {
     <div className="fade-in">
       <div className="page-header">
         <h2 className="page-title">Report Waste</h2>
-        <p className="page-subtitle">Upload a photo and location · AI classifies waste type · System decides response</p>
+        <p className="page-subtitle">Upload a photo and location · Select waste type · System decides response</p>
       </div>
 
       <div className="two-col">
@@ -282,9 +265,9 @@ export default function CitizenReport() {
 
           {/* Category */}
           <div className="form-group">
-            <label className="form-label">Category (optional — AI will classify)</label>
+            <label className="form-label">Waste Category</label>
             <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}>
-              <option value="">Let AI classify</option>
+              <option value="">Select a category</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -304,8 +287,8 @@ export default function CitizenReport() {
               style={{ height: '100%', width: '100%' }}
             >
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               />
               <LocationPicker position={position} setPosition={setPosition} />
             </MapContainer>

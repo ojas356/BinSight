@@ -695,6 +695,15 @@ body {
   font-size: 16px;
   font-weight: 700;
   margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.portal-card-citizen .portal-card-body h2 {
+  color: var(--accent-teal, #2dd4bf);
+}
+
+.portal-card-municipal .portal-card-body h2 {
+  color: var(--accent-amber, #f59e0b);
 }
 
 .portal-card-body p {

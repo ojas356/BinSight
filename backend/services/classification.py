@@ -57,7 +57,9 @@ def classify_with_openai(image_path):
     Requires OPENAI_API_KEY in .env.
     Returns: (category, confidence) or (None, None) on failure.
     """
-    if not OPENAI_API_KEY or OPENAI_API_KEY == 'your_openai_api_key_here':
+    # Read key at call time (not import time) so load_dotenv() has already run
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key or api_key == 'your_openai_api_key_here':
         return None, None
 
     if not image_path or not os.path.exists(image_path):
@@ -65,7 +67,7 @@ def classify_with_openai(image_path):
 
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = OpenAI(api_key=api_key)
 
         with open(image_path, 'rb') as f:
             image_data = base64.b64encode(f.read()).decode('utf-8')
@@ -120,7 +122,9 @@ def classify_with_openai(image_path):
 
         return category, round(min(max(confidence, 0.0), 1.0), 2)
 
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(f"[classification] OpenAI error: {e}\n{traceback.format_exc()}")
         return None, None
 
 
@@ -172,17 +176,28 @@ def classify(image_path=None):
     Tries OpenAI Vision first (if key is set), falls back to
     keyword/hash classifier.
 
-    Returns: (category, confidence, estimated_size)
+    Returns: (category, confidence, estimated_size, method)
+    method: 'openai' | 'keyword' | 'hash' | 'default'
     """
+    method = 'default'
+
     # Try OpenAI Vision
     category, confidence = classify_with_openai(image_path)
-
-    # Fall back to local classifier
-    if category is None:
+    if category is not None:
+        method = 'openai'
+    else:
+        # Fall back to local classifier
+        if image_path:
+            filename = os.path.basename(image_path).lower()
+            for keyword in KEYWORD_MAP:
+                if keyword in filename:
+                    method = 'keyword'
+                    break
+            else:
+                method = 'hash'
         category, confidence = classify_fallback(image_path)
 
-    # Size estimation — use file size as a rough proxy.
-    # In production, swap with an object-detection bounding-box area.
+    # Size estimation
     estimated_size = 'medium'
     if image_path:
         try:
@@ -194,4 +209,4 @@ def classify(image_path=None):
         except Exception:
             pass
 
-    return category, confidence, estimated_size
+    return category, confidence, estimated_size, method

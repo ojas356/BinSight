@@ -39,7 +39,6 @@ from services.trucks import (
 )
 from services.hotspots import run_dbscan, check_recurrence, recommend_intervention
 from services.routing import generate_gap_route, get_traffic_level
-from services.classification import classify
 
 app = Flask(__name__)
 app.json_provider_class = NumpySafeJSONProvider
@@ -147,16 +146,11 @@ def create_report():
     
     sim_now = sim_clock.now()
     
-    # 1. AI Classification
-    image_path = os.path.join(UPLOAD_DIR, data['image']) if data.get('image') else None
-    ai_category, ai_confidence, ai_size = classify(image_path)
+    # Category and size come entirely from the user submission
+    category = data.get('category') or 'Mixed Waste'
+    size = data.get('size') or 'medium'
     
-    # Use user-provided category if given, otherwise AI
-    category = data.get('category') or ai_category
-    size = data.get('size') or ai_size
-    confidence = ai_confidence
-    
-    # 2. Create the report
+    # 1. Create the report
     est_waste = estimate_waste(size, category)
     
     report = Report(
@@ -165,7 +159,7 @@ def create_report():
         longitude=lon,
         timestamp=sim_now,
         category=category,
-        confidence=confidence,
+        confidence=1.0,
         description=data.get('description', ''),
         size=size,
         estimated_waste=est_waste,
@@ -237,11 +231,6 @@ def create_report():
     response = {
         'report': report.to_dict(),
         'outcome': outcome,
-        'ai_classification': {
-            'category': ai_category,
-            'confidence': ai_confidence,
-            'estimated_size': ai_size,
-        },
     }
     
     if outcome == 'HELD':
